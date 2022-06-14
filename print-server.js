@@ -39,34 +39,52 @@ app.get('/', (req, res) => {
 app.post('/', (req, res) => {
     //console.log("body", req.body);
     let fileLocation = "temp";
-    let fileName = req.body.filename || "tempfile.pdf";
-    let printerName = req.body.printer || "HP LaserJet 4";
-    let pdfData = req.body.data;
-    //let pdf = new Buffer(pdfData, 'base64');
-    //let text = pdf.toString('ascii');
-    var pdfContent = Buffer.from(pdfData, 'base64');
-    fs.writeFile(`./${fileLocation}/${fileName}`, pdfContent, function() {
-        console.log("Saved the file".green, fileName.white, "to".green, `/${fileLocation}`.green);
-        const options = {
-            printer: printerName,
-          };
-    /*  ptp.print(pdfFile, options)
-        .then( function() { 
-            confirmSuccess(res, fileName, printerName); 
+    let fileName = req.body?.filename || "tempfile.pdf";
+    let printerName = req.body?.printer || "HP LaserJet 4";
+    let pdfData = req.body?.data;
+    try {
+        var pdfContent = Buffer.from(pdfData, 'base64');
+        fs.writeFile(`./${fileLocation}/${fileName}`, pdfContent, function(err) {
+            if (err) {
+                console.log(`Error ${err.errno}:`.brightRed, `${err.code} - ${err.syscall} ${err.path}`.red.bold);
+                confirmFailure(res, fileName, printerName);
+                return;
+            }
+            console.log("Saved the file".green, fileName.white, "to".green, `/${fileLocation}`.green);
+            const options = {
+                printer: printerName,
+            };
+        /*  ptp.print(pdfFile, options)
+            .then( function() { 
+                confirmSuccess(res, fileName, printerName); 
+                // Remove file from folder
+                fs.unlinkSync(`./${fileLocation}/${fileName}`); 
+            })
+            .catch( function() {
+                confirmFailure(res, fileName, printerName;
+                // Remove file from folder
+                fs.unlinkSync(`./${fileLocation}/${fileName}`); 
+            ));  */
+            
             // Remove file from folder
-            fs.unlinkSync(`./${fileLocation}/${fileName}`); 
-        })
-        .catch( function() {
-            confirmFailure(res, fileName, printerName;
-            // Remove file from folder
-            fs.unlinkSync(`./${fileLocation}/${fileName}`); 
-        ));  */
-        
-        confirmSuccess(res, fileName, printerName);
-        // Remove file from folder
-        fs.unlinkSync(`./${fileLocation}/${fileName}`);
-    });
-
+            fs.unlink(`./${fileLocation}/${fileName}`,(err) => {
+                if(err) {
+                    //console.log("failed to delete local image:" + err);
+                    //console.log(JSON.stringify(err));
+                    console.log(`Error ${err.errno}:`.brightRed, `${err.code} - ${err.syscall} ${err.path}`.red.bold);
+                    confirmFailure(res, fileName, printerName);
+                } else {
+                    confirmSuccess(res, fileName, printerName);
+                }
+            });
+        });
+    }
+    catch(err) {
+        console.log(JSON.stringify(err));
+        console.log(`Error ${err.code}:`.brightRed, err.error.red.bold);
+        console.log("File:".brightRed,`${fileName}`.red.bold);
+        confirmFailure(res, fileName, printerName);
+    }
 })
 
 var confirmSuccess = function(res,fileName,printerName) {
@@ -83,13 +101,13 @@ var confirmFailure = function(res,fileName,printerName) {
     console.log(" ");
     let response = {
         success: false,
-        message: `Failed printing ${fileName} obn ${printerName}`
+        message: `Failed printing ${fileName} on ${printerName}`
     };
     res.send(response);
 }
 
 app.listen(port, () => {
     console.log(" ");
-    console.log("Wipfli Print Server".yellow,"v0.0.2".yellow, "listening on port".green, `${port}`.brightGreen);
+    console.log("Wipfli Print Server".yellow,"v0.0.4".yellow, "listening on port".green, `${port}`.brightGreen);
     console.log("-------------------------------------------------".green);
 })
