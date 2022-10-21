@@ -30,78 +30,77 @@ import colors from 'colors';
 
 const app = express();
 const port = 3000;
-app.use(bodyParser.urlencoded({ extended: true }));
+
+/*
+process.on('uncaughtException', err => {
+  console.log(`Uncaught Exception: ${err.message}`)
+  process.exit(1)
+}) */
+
+app.use(bodyParser.urlencoded({ extended: true }))
 
 app.get('/', (req, res) => {
     res.send("Use HTTP POST to print PDF file.");
 })
 
 app.post('/', (req, res) => {
-    //console.log("body", req.body);
     let fileLocation = "temp";
     let fileName = req.body?.filename || "tempfile.pdf";
     let printerName = req.body?.printer || "HP LaserJet 4";
     let pdfData = req.body?.data;
     try {
-        var pdfContent = Buffer.from(pdfData, 'base64');
-        fs.writeFile(`./${fileLocation}/${fileName}`, pdfContent, function(err) {
+        let pdfContent = Buffer.from(pdfData, 'base64');
+		let pdfFileName = `./${fileLocation}/${fileName}`;
+        fs.writeFile(pdfFileName, pdfContent, function(err) {
             if (err) {
                 console.log(`Error ${err.errno}:`.brightRed, `${err.code} - ${err.syscall} ${err.path}`.red.bold);
-                confirmFailure(res, fileName, printerName);
+				confirmFailure(res, fileName, printerName);
                 return;
             }
             console.log("Saved the file".green, fileName.white, "to".green, `/${fileLocation}`.green);
             const options = {
                 printer: printerName,
             };
-        /*  ptp.print(pdfFile, options)
+            ptp.print(pdfFileName, options)
             .then( function() { 
                 confirmSuccess(res, fileName, printerName); 
                 // Remove file from folder
-                fs.unlinkSync(`./${fileLocation}/${fileName}`); 
+                fs.unlinkSync(pdfFileName); 
             })
             .catch( function() {
-                confirmFailure(res, fileName, printerName;
+                confirmFailure(res, fileName, printerName);
                 // Remove file from folder
-                fs.unlinkSync(`./${fileLocation}/${fileName}`); 
-            ));  */
-            
-            // Remove file from folder
-            fs.unlink(`./${fileLocation}/${fileName}`,(err) => {
-                if(err) {
-                    //console.log("failed to delete local image:" + err);
-                    //console.log(JSON.stringify(err));
-                    console.log(`Error ${err.errno}:`.brightRed, `${err.code} - ${err.syscall} ${err.path}`.red.bold);
-                    confirmFailure(res, fileName, printerName);
-                } else {
-                    confirmSuccess(res, fileName, printerName);
-                }
-            });
+                fs.unlinkSync(pdfFileName); 
+            });  
         });
     }
     catch(err) {
         console.log(JSON.stringify(err));
-        console.log(`Error ${err.code}:`.brightRed, err.error.red.bold);
+        console.log(`Error ${err.code}:`.brightRed, `${err.error}`.red.bold);
         console.log("File:".brightRed,`${fileName}`.red.bold);
         confirmFailure(res, fileName, printerName);
     }
 })
 
-var confirmSuccess = function(res,fileName,printerName) {
+const confirmSuccess = function(res,fileName,printerName) {
     console.log("Printed".green, fileName.brightGreen.bold, "on".green, printerName.brightGreen.bold);
     console.log(" ");
     let response = {
         success: true,
         message: `Printing ${fileName} on ${printerName}`
-    };
+    }
     res.send(response);
 }
-var confirmFailure = function(res,fileName,printerName) {
+
+const confirmFailure = function(res,fileName,printerName) {
     console.log("Failed printing".brightRed, fileName.red.bold, "on".brightRed, printerName.red.bold);
     console.log(" ");
     let response = {
         success: false,
-        message: `Failed printing ${fileName} on ${printerName}`
+		error: {
+			code: "PRINT_FAILED",
+			message: `Failed printing ${fileName} on ${printerName}`
+		}
     };
     res.send(response);
 }
