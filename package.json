@@ -1,6 +1,6 @@
 {
   "name": "print-server",
-  "version": "0.0.1",
+  "version": "0.3.0",
   "type": "module",
   "description": "NetSuite Print Server",
   "main": "print-server.js",
@@ -10,8 +10,9 @@
   "author": "Karl-Henry Martinsson",
   "license": "ISC",
   "dependencies": {
+    "@thiagoelg/node-printer": "^0.6.2",
     "body-parser": "^1.19.0",
-    "colors": "^1.4.0",
+    "colors": "1.4.0",
     "express": "^4.17.1",
     "pdf-to-printer": "^2.0.6"
   }
