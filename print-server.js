@@ -22,14 +22,25 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+import http from 'http';
+import https from 'https';
 import ptp from 'pdf-to-printer';
+import nodePrinter from '@thiagoelg/node-printer';
 import express from 'express';
 import bodyParser from 'body-parser';
 import fs from 'fs';
-import colors from 'colors';
+import colors from 'colors';        // Note: Using safe version 1.4.0
 
+const router = express.Router();
 const app = express();
-const port = 3000;
+const port = 443;
+app.use(express.json());
+
+const handleResponse = (res, data) => {
+    res.status(200).send(data);
+}
+const handleError = (res, err) => res.status(500).send(err);
 
 /*
 process.on('uncaughtException', err => {
@@ -40,50 +51,102 @@ process.on('uncaughtException', err => {
 app.use(bodyParser.urlencoded({ extended: true }))
 
 app.get('/', (req, res) => {
-    res.send("Use HTTP POST to print PDF file.");
-})
+    res.send("Use HTTPS POST to print PDF file.");
+});
+
+
+app.get('/printers', await list);
+
+async function list(request, response) {
+  function onSuccess(data) {
+    response.send({ data });
+   }
+
+  function onError(error) {
+    console.log(`error - ${error}`);
+    response.send({ status: "error", error });
+  }
+  let prn = await ptp.getPrinters();
+  let printers = [];
+  for (let i=0; i<prn.length; i++) {
+    if (prn[i].name.indexOf("Microsoft")<0) {
+        printers.push(prn[i].name);
+    }
+  }
+  printers = printers.sort();
+  response.send(printers);
+}
+
 
 app.post('/', (req, res) => {
+    let body = req.body;
     let fileLocation = "temp";
-    let fileName = req.body?.filename || "tempfile.pdf";
-    let printerName = req.body?.printer || "HP LaserJet 4";
-    let pdfData = req.body?.data;
-    try {
-        let pdfContent = Buffer.from(pdfData, 'base64');
-		let pdfFileName = `./${fileLocation}/${fileName}`;
-        fs.writeFile(pdfFileName, pdfContent, function(err) {
+    let printerName = body?.printer || "Canon Seville";
+    let format = body?.format || "PDF";
+    let fileName = body?.filename || "tempfile." + format.toLowerCase();
+    let printData = body?.data;
+
+    try {	
+	let printContent = '';
+	if (format.toUpperCase()=="PDF") {
+            printContent = Buffer.from(printData, 'base64');
+	} else {
+            printContent = printData;
+        }
+	let printFileName = `./${fileLocation}/${fileName}`;
+	fs.writeFile(printFileName, printContent, function(err) {
             if (err) {
-                console.log(`Error ${err.errno}:`.brightRed, `${err.code} - ${err.syscall} ${err.path}`.red.bold);
-				confirmFailure(res, fileName, printerName);
+                console.log(` Error ${err.errno}:`.brightRed, `${err.code} - ${err.syscall} ${err.path}`.red.bold);
+		confirmFailure(res, fileName, printerName);
                 return;
             }
-            console.log("Saved the file".green, fileName.white, "to".green, `/${fileLocation}`.green);
-            const options = {
-                printer: printerName,
-            };
-            ptp.print(pdfFileName, options)
-            .then( function() { 
-                confirmSuccess(res, fileName, printerName); 
-                // Remove file from folder
-                fs.unlinkSync(pdfFileName); 
-            })
-            .catch( function() {
-                confirmFailure(res, fileName, printerName);
-                // Remove file from folder
-                fs.unlinkSync(pdfFileName); 
-            });  
+            console.log(" Saved the file".green, fileName.white, "to".green, `/${fileLocation}`.green);
+            if (format.toUpperCase()=="PDF") {
+                const options = {
+                    printer: printerName,
+                };
+                ptp.print(printFileName, options)
+                .then( function() { 
+                    confirmSuccess(res, fileName, printerName); 
+                    // Remove file from folder
+                    fs.unlinkSync(printFileName); 
+                })
+                .catch( function(err) {
+                    console.log(JSON.stringify(err));
+                    // Remove file from folder
+                    fs.unlinkSync(printFileName); 
+	            confirmFailure(res, fileName, printerName);
+		    return;
+                });  
+            } else {
+                nodePrinter.printDirect({data: printData, printer:printerName, type: "RAW",
+		    success:function(){
+			confirmSuccess(res, fileName, printerName); 
+                        // Remove file from folder
+                        fs.unlinkSync(printFileName);
+		    },
+		    error:function(err){
+                        console.log(err);
+                        // Remove file from folder
+                        fs.unlinkSync(printFileName); 
+		        confirmFailure(res, fileName, printerName);
+		        return;
+                    }
+	        });
+            }
         });
     }
     catch(err) {
         console.log(JSON.stringify(err));
-        console.log(`Error ${err.code}:`.brightRed, `${err.error}`.red.bold);
-        console.log("File:".brightRed,`${fileName}`.red.bold);
+        console.log(` Error ${err.code}:`.brightRed, `${err.error}`.red.bold);
+        console.log(" File:".brightRed,`${fileName}`.red.bold);
         confirmFailure(res, fileName, printerName);
+	return;
     }
 })
 
 const confirmSuccess = function(res,fileName,printerName) {
-    console.log("Printed".green, fileName.brightGreen.bold, "on".green, printerName.brightGreen.bold);
+    console.log(" Printed".green, fileName.brightGreen.bold, "on".green, printerName.brightGreen.bold);
     console.log(" ");
     let response = {
         success: true,
@@ -93,7 +156,7 @@ const confirmSuccess = function(res,fileName,printerName) {
 }
 
 const confirmFailure = function(res,fileName,printerName) {
-    console.log("Failed printing".brightRed, fileName.red.bold, "on".brightRed, printerName.red.bold);
+    console.log(" Failed printing".brightRed, fileName.red.bold, "on".brightRed, printerName.red.bold);
     console.log(" ");
     let response = {
         success: false,
@@ -105,8 +168,21 @@ const confirmFailure = function(res,fileName,printerName) {
     res.send(response);
 }
 
-app.listen(port, () => {
-    console.log(" ");
-    console.log("Wipfli Print Server".yellow,"v0.0.4".yellow, "listening on port".green, `${port}`.brightGreen);
-    console.log("-------------------------------------------------".green);
-})
+
+var privateKey  = fs.readFileSync('./wildcard_valleycabinetinc_com.key', 'utf8');
+var certificate = fs.readFileSync('./wildcard_valleycabinetinc_com.crt', 'utf8');
+var ca = fs.readFileSync('./valleycabinetinc.ca-bundle', 'utf8');
+
+
+https.createServer({
+      requestCert: true,
+      rejectUnauthorized: false,
+      ca: ca,
+      key: privateKey, 
+      cert: certificate
+    }, app).listen(port, ()=>{
+    console.log('\x1Bc'); // Clear screen
+    console.log(" Wipfli Print Server".yellow,"v0.4.0".yellow, "listening on port".green, `${port}`.brightGreen);
+    console.log(" -------------------------------------------------".green);
+});
+
