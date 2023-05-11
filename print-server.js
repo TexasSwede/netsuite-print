@@ -34,8 +34,9 @@ import fs from 'fs';
 import colors from 'colors';        // Note: Using safe version 1.4.0
 
 const app = express();
-const PORT = 443;
 const certPath = './certs'; // Location of SSL certificates
+const ENV = process.env;
+const PORT = ENV.PORT || 443;
 
 // Middleware
 app.use(express.json());
@@ -166,11 +167,19 @@ const confirmFailure = function (res, fileName, printerName) {
     res.send(response);
 };
 
-var privateKey = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.key`, 'utf8');
-var certificate = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.crt`, 'utf8');
-var ca = fs.readFileSync(`${certPath}/valleycabinetinc.ca-bundle`, 'utf8');
+const server = ENV.NODE_ENV === 'dev' ? http : https;
+var privateKey = undefined;
 
-https.createServer({
+var certificate = undefined;
+var ca = undefined;
+
+if (ENV.NODE_ENV === 'prod') {
+    privateKey = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.key`, 'utf8');
+    certificate = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.crt`, 'utf8');
+    ca = fs.readFileSync(`${certPath}/valleycabinetinc.ca-bundle`, 'utf8');
+}
+
+server.createServer({
     requestCert: true,
     rejectUnauthorized: false,
     ca: ca,
