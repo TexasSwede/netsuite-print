@@ -1,3 +1,5 @@
 valleycabinetinc.ca-bundle
 wildcard_valleycabinetinc_com.crt
 wildcard_valleycabinetinc_com.key
+
+node-modules
