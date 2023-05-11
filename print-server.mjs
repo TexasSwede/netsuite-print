@@ -38,6 +38,8 @@ const certPath = './certs'; // Location of SSL certificates
 const ENV = process.env;
 const PORT = ENV.PORT || 443;
 
+console.log(ENV);
+
 // Middleware
 app.use(express.json());
 app.use(bodyParser.urlencoded({extended: true}))
