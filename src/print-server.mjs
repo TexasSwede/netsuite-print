@@ -38,8 +38,6 @@ const certPath = './certs'; // Location of SSL certificates
 const ENV = process.env;
 const PORT = ENV.PORT || 443;
 
-console.log(ENV);
-
 // Middleware
 app.use(express.json());
 app.use(bodyParser.urlencoded({extended: true}))
@@ -189,6 +187,6 @@ server.createServer({
     cert: certificate
 }, app).listen(PORT, () => {
     console.log('\x1Bc'); // Clear screen
-    console.log(" Wipfli Print Server".yellow, "v0.4.1".yellow, "listening on port".green, `${port}`.brightGreen);
+    console.log(" Wipfli Print Server".yellow, "v0.4.1".yellow, "listening on port".green, `${PORT}`.brightGreen);
     console.log(" -------------------------------------------------".green);
 });
