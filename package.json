@@ -1,11 +1,14 @@
 {
   "name": "print-server",
   "version": "0.3.0",
-  "type": "module",
+  "type": "commonjs",
   "description": "NetSuite Print Server",
-  "main": "print-server.js",
+  "main": "src/print-server.mjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:dev": "pm2 start --env dev",
+    "start:prod": "pm2 start --env prod",
+    "stop": "pm2 stop all"
   },
   "author": "Karl-Henry Martinsson",
   "license": "ISC",
@@ -15,5 +18,8 @@
     "colors": "1.4.0",
     "express": "^4.17.1",
     "pdf-to-printer": "^2.0.6"
+  },
+  "devDependencies": {
+    "pm2": "^5.3.0"
   }
 }

@@ -1,27 +1,27 @@
 /**
-* netsuite-printer
-* 
-* This is a middleware script to run locally on a server on your network (within your firewall).
-* The server needs to have a public IP address, or port forwarding, so it can be accessed
-* from the NetSuite cloud servers. The computer/server on which this middleware code is running 
-* needs to have network printers mapped for them to be able to be printed to from NetSuite.
-* 
-* Copyright (c) 2021 Karl-Henry Martinsson
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
-* and associated documentation files (the "Software"), to deal in the Software without restriction, 
-* including without limitation the rights to use, copy, modify, merge, publish, distribute, 
-* sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is 
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING 
-* BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
-* NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
-* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ * netsuite-printer
+ *
+ * This is a middleware script to run locally on a server on your network (within your firewall).
+ * The server needs to have a public IP address, or port forwarding, so it can be accessed
+ * from the NetSuite cloud servers. The computer/server on which this middleware code is running
+ * needs to have network printers mapped for them to be able to be printed to from NetSuite.
+ *
+ * Copyright (c) 2021 Karl-Henry Martinsson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge, publish, distribute,
+ * sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 import http from 'http';
 import https from 'https';
@@ -30,19 +30,17 @@ import nodePrinter from '@thiagoelg/node-printer';
 import express from 'express';
 import bodyParser from 'body-parser';
 import fs from 'fs';
+// Do not remove
 import colors from 'colors';        // Note: Using safe version 1.4.0
 
-const router = express.Router();
 const app = express();
-const port = 443;
 const certPath = './certs'; // Location of SSL certificates
+const ENV = process.env;
+const PORT = ENV.PORT || 443;
 
+// Middleware
 app.use(express.json());
-
-const handleResponse = (res, data) => {
-    res.status(200).send(data);
-}
-const handleError = (res, err) => res.status(500).send(err);
+app.use(bodyParser.urlencoded({extended: true}))
 
 /*
 process.on('uncaughtException', err => {
@@ -50,23 +48,15 @@ process.on('uncaughtException', err => {
   process.exit(1)
 }) */
 
-app.use(bodyParser.urlencoded({ extended: true }))
 
 app.get('/', (req, res) => {
-    res.send("Use HTTPS POST to print PDF file.");
+    res.status(404).send("Use HTTPS POST to print PDF file.");
 });
 
-app.get('/printers', await list);
 
-async function list(request, response) {
-    function onSuccess(data) {
-        response.send({ data });
-    }
+app.get('/printers', await listPrinters);
 
-    function onError(error) {
-        console.log(`error - ${error}`);
-        response.send({ status: "error", error });
-    }
+async function listPrinters(request, response) {
     let prn = await ptp.getPrinters();
     let printers = [];
     for (let i = 0; i < prn.length; i++) {
@@ -141,7 +131,6 @@ app.post('/', (req, res) => {
         console.log(` Error ${err.code}:`.brightRed, `${err.error}`.red.bold);
         console.log(" File:".brightRed, `${fileName}`.red.bold);
         confirmFailure(res, fileName, printerName);
-        return;
     }
 });
 
@@ -178,18 +167,26 @@ const confirmFailure = function (res, fileName, printerName) {
     res.send(response);
 };
 
-var privateKey = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.key`, 'utf8');
-var certificate = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.crt`, 'utf8');
-var ca = fs.readFileSync(`${certPath}/valleycabinetinc.ca-bundle`, 'utf8');
+const server = ENV.NODE_ENV === 'dev' ? http : https;
+var privateKey = undefined;
 
-https.createServer({
+var certificate = undefined;
+var ca = undefined;
+
+if (ENV.NODE_ENV === 'prod') {
+    privateKey = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.key`, 'utf8');
+    certificate = fs.readFileSync(`${certPath}/wildcard_valleycabinetinc_com.crt`, 'utf8');
+    ca = fs.readFileSync(`${certPath}/valleycabinetinc.ca-bundle`, 'utf8');
+}
+
+server.createServer({
     requestCert: true,
     rejectUnauthorized: false,
     ca: ca,
     key: privateKey,
     cert: certificate
-}, app).listen(port, () => {
+}, app).listen(PORT, () => {
     console.log('\x1Bc'); // Clear screen
-    console.log(" Wipfli Print Server".yellow, "v0.4.1".yellow, "listening on port".green, `${port}`.brightGreen);
+    console.log(" Wipfli Print Server".yellow, "v0.4.1".yellow, "listening on port".green, `${PORT}`.brightGreen);
     console.log(" -------------------------------------------------".green);
 });
