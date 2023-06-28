@@ -16,6 +16,7 @@
     "@thiagoelg/node-printer": "^0.6.2",
     "body-parser": "^1.19.0",
     "colors": "1.4.0",
+    "dotenv": "^16.3.1",
     "express": "^4.17.1",
     "pdf-to-printer": "^2.0.6"
   },

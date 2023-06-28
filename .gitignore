@@ -3,3 +3,5 @@ wildcard_valleycabinetinc_com.crt
 wildcard_valleycabinetinc_com.key
 
 node_modules
+
+.env

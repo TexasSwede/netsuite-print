@@ -23,6 +23,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+import 'dotenv/config';
 import http from 'http';
 import https from 'https';
 import ptp from 'pdf-to-printer';
@@ -32,6 +33,7 @@ import bodyParser from 'body-parser';
 import fs from 'fs';
 // Do not remove
 import colors from 'colors';        // Note: Using safe version 1.4.0
+import Auth from './Auth.mjs';
 
 const app = express();
 const certPath = './certs'; // Location of SSL certificates
@@ -41,6 +43,7 @@ const PORT = ENV.PORT || 443;
 // Middleware
 app.use(express.json());
 app.use(bodyParser.urlencoded({extended: true}))
+app.use(Auth.basic);
 
 /*
 process.on('uncaughtException', err => {
